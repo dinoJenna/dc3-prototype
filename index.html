@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DC-3 Prototype</title>
+<style>
+/* ============================================================
+   DC-3 — Palette per GDD §9: navy / baby blue primary,
+   sun-orange and moon-blue as the two Battler accents.
+   ============================================================ */
+:root{
+  --navy:#0a1a33;
+  --navy-2:#122a52;
+  --navy-3:#1c3d78;
+  --baby:#a8d4ff;
+  --baby-dim:#6f9cc9;
+  --sun:#ff9d3c;
+  --moon:#5aa9ff;
+  --rarity-common:#93aac6;
+  --rarity-rare:#f0c75e;
+  --rarity-legend:#c77dff;
+  --rarity-effect:#a8d4ff;
+  --card-h:clamp(58px, 10.5vh, 106px);
+  --card-w:calc(var(--card-h) * 0.72);
+  --slot-gap:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(circle at 50% 20%, var(--navy-2), var(--navy) 70%);
+  color:var(--baby);
+  font-family:'Segoe UI', system-ui, sans-serif;
+  overflow-x:hidden;
+}
+#app{display:flex;gap:12px;padding:10px;max-width:1280px;margin:0 auto;min-height:100vh}
+
+/* ---------- Arena (GDD §4) ---------- */
+.arena{
+  flex:1;position:relative;border:2px solid var(--navy-3);border-radius:14px;
+  overflow:hidden;background-size:cover;background-position:center;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:8px 12px;gap:4px;
+}
+.arena::before{ /* navy veil so cards read over any Terrain art */
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg, rgba(10,26,51,.85), rgba(10,26,51,.66) 50%, rgba(10,26,51,.85));
+}
+.arena>*{position:relative;z-index:1}
+
+.row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.row-label{
+  justify-self:end;text-align:right;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--baby-dim);max-width:120px;line-height:1.25;
+}
+.slots{display:grid;grid-template-columns:repeat(4, var(--card-w));gap:var(--slot-gap);justify-content:center}
+.mid-slots{
+  display:grid;grid-template-columns:1.5fr 1fr 1.5fr;gap:var(--slot-gap);
+  width:calc(var(--card-w) * 4 + var(--slot-gap) * 3);
+}
+.slot{
+  width:var(--card-w);height:var(--card-h);border-radius:8px;position:relative;
+  border:1.5px dashed rgba(168,212,255,.34);background:rgba(18,42,82,.38);
+  display:flex;align-items:center;justify-content:center;
+}
+.slot.wide{width:100%}
+.slot-tag{font-size:10px;color:var(--baby-dim);letter-spacing:.06em}
+.slot>.card{position:absolute;inset:0;width:100%;height:100%}
+
+/* ---------- Cards ---------- */
+.card{
+  width:var(--card-w);height:var(--card-h);border-radius:8px;position:relative;
+  overflow:hidden;border:1.5px solid var(--rarity-effect);flex-shrink:0;
+  background:linear-gradient(160deg, var(--navy-2), var(--navy-3));
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.rarity-common{border-color:var(--rarity-common)}
+.rarity-rare{border-color:var(--rarity-rare)}
+.rarity-legend{border-color:var(--rarity-legend)}
+/* missing-asset placeholder: the frame beneath the art, tinted by rarity */
+.rarity-common .card-body{background:linear-gradient(160deg, #2a3f5c, var(--navy-2))}
+.rarity-rare .card-body{background:linear-gradient(160deg, #4d4023, var(--navy-2))}
+.rarity-legend .card-body{background:linear-gradient(160deg, #3d2a52, var(--navy-2))}
+.card-body{position:absolute;inset:0}
+.card-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.card-name{
+  position:relative;z-index:2;font-size:10px;font-weight:600;text-align:center;
+  background:rgba(10,26,51,.8);padding:1px 3px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;color:#dceeff;
+}
+.card-stats{
+  position:relative;z-index:2;display:flex;justify-content:space-between;
+  font-size:9px;background:rgba(10,26,51,.8);padding:1px 4px;color:var(--baby);
+}
+.card-back{align-items:center;justify-content:center;border-color:var(--navy-3)}
+.back-glyph{position:relative;z-index:2;font-size:20px;color:var(--baby-dim)}
+
+/* ---------- Hands & piles ---------- */
+.hand-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.hand{display:flex;gap:6px;justify-content:center}
+.piles{display:flex;gap:10px;justify-self:end;align-items:flex-end}
+.pile{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pile-label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--baby-dim)}
+.pile-count{
+  position:absolute;top:-6px;right:-6px;z-index:3;min-width:18px;height:18px;
+  border-radius:9px;background:var(--navy-3);border:1px solid var(--baby);
+  color:#dceeff;font-size:10px;display:flex;align-items:center;justify-content:center;padding:0 4px;
+}
+.pile .slot{width:var(--card-w);height:var(--card-h)}
+
+/* ---------- HUD (GDD §4 order) ---------- */
+.hud{
+  width:272px;display:flex;flex-direction:column;gap:12px;padding:14px;
+  border:2px solid var(--navy-3);border-radius:14px;
+  background:linear-gradient(180deg, var(--navy-2), var(--navy));
+}
+.hud h1{font-size:20px;letter-spacing:.2em;text-align:center;color:#dceeff}
+.hud-block{display:flex;flex-direction:column;gap:6px}
+.battler-label{font-size:12px;letter-spacing:.05em;color:#dceeff}
+.ap-bar{
+  position:relative;height:24px;border-radius:12px;overflow:hidden;
+  border:1px solid var(--baby-dim);background:rgba(0,0,0,.4);
+}
+.ap-fill{height:100%;transition:width .5s ease}
+.ap-bar.sun .ap-fill{background:linear-gradient(90deg, #b35a00, var(--sun))}
+.ap-bar.moon .ap-fill{background:linear-gradient(90deg, #1c4d8f, var(--moon))}
+.ap-text{
+  position:absolute;inset:0;display:flex;align-items:center;gap:6px;
+  padding:0 8px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);
+}
+.mp-chip{
+  align-self:flex-start;font-size:11px;padding:2px 10px;border-radius:10px;
+  border:1px solid var(--baby-dim);background:rgba(18,42,82,.7);color:#dceeff;
+}
+.terrain-block{
+  border:1px solid var(--navy-3);border-radius:10px;padding:8px;
+  background:rgba(18,42,82,.5);
+}
+.terrain-title{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--baby-dim)}
+.terrain-name{font-size:14px;font-weight:600;color:#dceeff}
+.terrain-text{font-size:11px;color:var(--baby);line-height:1.4}
+.hud button{
+  padding:10px;border-radius:10px;border:2px solid var(--baby);cursor:pointer;
+  background:var(--navy-2);color:#dceeff;font-size:15px;font-family:inherit;letter-spacing:.05em;
+}
+.hud button:hover{background:var(--navy-3);box-shadow:0 0 10px rgba(168,212,255,.35)}
+.hud-note{font-size:10px;color:var(--baby-dim);text-align:center;line-height:1.4;margin-top:auto}
+
+/* basic narrow-screen fallback (full mobile pass lands in M6) */
+@media (max-width:900px){
+  #app{flex-direction:column;min-height:0}
+  .hud{width:auto}
+  .row-label{max-width:70px;font-size:8px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+/* ============================================================
+   DC-3 Prototype — single-file build. DC3-GDD-v2.md is the
+   sole design authority. Current milestone: M1 (Static Arena).
+   ============================================================ */
+
+/* ===================== Core numbers (GDD §5) ===================== */
+const STARTING_AP        = 75;
+const STARTING_MP        = 3;
+const MP_PER_TURN        = 2;
+const MP_ON_KILL         = 1;
+const MP_ON_BLITZ        = 2;
+const BLITZ_COST         = 2;
+const MOVE_TO_FRONT_COST = 1;
+const MOVE_TO_REAR_COST  = 0;
+const HAND_START         = 3;
+const HAND_MAX           = 5;
+const DECK_SIZE          = 20;
+const VECTOR_COUNT       = 4;   /* GDD §4 — four Vectors (lanes) */
+
+/* ===================== Card database (GDD §8) ===================== */
+const PATROLS = [
+  { id:'elf',       name:'Elf',       asset:'elf.png',       tags:['humanoid','non-mars'],     mp:1,  vsp:2,  rarity:'Common' },
+  { id:'astronaut', name:'Astronaut', asset:'astronaut.png', tags:['humanoid','mars'],         mp:2,  vsp:3,  rarity:'Common' },
+  { id:'orc',       name:'Orc',       asset:'orc.png',       tags:['humanoid','non-mars'],     mp:3,  vsp:4,  rarity:'Common' },
+  { id:'martian',   name:'Martian',   asset:'martian.png',   tags:['non-humanoid','mars'],     mp:4,  vsp:5,  rarity:'Common' },
+  { id:'mage',      name:'Mage',      asset:'mage.jpg',      tags:['humanoid','non-mars'],     mp:5,  vsp:5,  rarity:'Common' },
+  { id:'flux',      name:'Flux',      asset:'flux.jpg',      tags:['non-humanoid','non-mars'], mp:6,  vsp:7,  rarity:'Rare' },
+  { id:'piercer',   name:'Piercer',   asset:'piercer.jpg',   tags:['humanoid','non-mars'],     mp:8,  vsp:9,  rarity:'Rare' },
+  { id:'stitcher',  name:'Stitcher',  asset:'stitcher.jpg',  tags:['non-humanoid','mars'],     mp:10, vsp:11, rarity:'Rare' },
+  { id:'weaver',    name:'Weaver',    asset:'weaver.jpg',    tags:['non-humanoid','mars'],     mp:12, vsp:14, rarity:'Legend' },
+];
+
+const EFFECTS = [
+  { id:'fate',      name:'Fate',       asset:'fate.jpg',       mp:7,  type:'Instant',
+    text:'Launch a Blitz from any lane, ignoring blockers and BLITZ_COST. Damage = average VsP of all your field Patrols × random multiplier (100% / 50% / 35% / 2%, equal odds).' },
+  { id:'control',   name:'Control',    asset:'control.jpg',    mp:7,  type:'Instant',
+    text:'Take control of one enemy Front Line Patrol for one Clash or Blitz this turn. It returns to its owner in the End Epoch.' },
+  { id:'siege',     name:'Siege',      asset:'siege.jpg',      mp:7,  type:'Buff',
+    text:'Until your next turn, the enemy cannot Clash your Patrols or Blitz you. Max one use per match.' },
+  { id:'time',      name:'Time',       asset:'time.jpg',       mp:8,  type:'Trap',
+    text:'Triggers when the enemy declares any attack: all enemy attacks this turn are cancelled. Next enemy turn, their strongest cancelled attack resolves against your highest-VsP Patrol; excess damage hits your AP.' },
+  { id:'last-stand',name:'Last Stand', asset:'last-stand.jpg', mp:11, type:'Trap',
+    text:'Triggers when your Patrol would be banished by a Clash: it strikes back with VsP equal to its attacker\'s. Both Patrols are banished.' },
+  { id:'disruption',name:'Disruption', asset:'disruption.jpg', mp:12, type:'Trap',
+    text:'Triggers on an enemy Blitz: you take no damage, and half the Blitzing Patrol\'s VsP is dealt to the enemy\'s AP. While this Trap is set, you cannot play other Effects.' },
+];
+
+const TERRAINS = [
+  { id:'colosseum', name:'Colosseum', asset:'colosseum.jpg',        rule:'All card MP costs −2 (minimum 1).' },
+  { id:'vault',     name:'Vault',     asset:'vault-terrain.png',    rule:'Both Battlers gain +1 extra MP per turn.' },
+  { id:'toxic',     name:'Toxic',     asset:'toxic-terrain.png',    rule:'−1 VsP to all non-mars Patrols.' },
+  { id:'fortress',  name:'Fortress',  asset:'fortress-terrain.jpg', rule:'Blitz is disabled for both Battlers.' },
+  { id:'lava',      name:'Lava',      asset:'lava-terrain.png',     rule:'+3 VsP to non-humanoid Patrols; −2 VsP to humanoid Patrols.' },
+];
+
+/* Starter deck list (GDD §8.4) — consumed by deck construction in M2 */
+const STARTER_DECK = {
+  patrols: { elf:2, astronaut:2, orc:2, martian:2, mage:2, flux:2, piercer:2, stitcher:1, weaver:1 },
+  effects: ['fate','control','siege','time'],
+};
+
+/* ===================== Seedable RNG ===================== */
+/* One seeded generator drives every shuffle, coin toss, and fate
+   multiplier so any bug is reproducible from the logged seed. */
+function makeRng(seed){
+  let s = seed >>> 0;
+  return function(){
+    s |= 0; s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const RNG_SEED = Date.now() >>> 0;
+let rng = makeRng(RNG_SEED);
+console.log('[DC-3] RNG seed:', RNG_SEED);
+
+/* ===================== Helpers ===================== */
+const ASSET_PATH = './assets/';
+function assetUrl(file){ return ASSET_PATH + file; }
+function patrolCard(id){ return { kind:'patrol', ...PATROLS.find(p => p.id === id) }; }
+function effectCard(id){ return { kind:'effect', ...EFFECTS.find(e => e.id === id) }; }
+
+/* ===================== Game state ===================== */
+/* M1 ships a hand-placed demo state so every Zone of the Arena is
+   visible for layout review. Real match setup (coin toss, Terrain
+   draw, deck construction, opening hands) replaces this in M2.
+   Sun/Moon sides below are placeholders until the coin toss exists. */
+function makeDemoState(){
+  return {
+    seed: RNG_SEED,
+    milestone: 'M1',
+    terrain: TERRAINS[0],   /* static sample so the Topographic Zone + HUD line render */
+    battlers: {
+      opponent: {
+        label: 'Opponent (AI)', celestial: 'moon',
+        ap: STARTING_AP, mp: STARTING_MP,
+        handCount: 3, deckCount: 14, discard: [],
+        rear:  [null, patrolCard('elf'), null, null],
+        front: [patrolCard('mage'), null, patrolCard('flux'), null],
+        nexus: [],
+      },
+      player: {
+        label: 'You', celestial: 'sun',
+        ap: STARTING_AP, mp: STARTING_MP,
+        hand: [patrolCard('elf'), patrolCard('mage'), effectCard('fate')],
+        deckCount: 12, discard: [patrolCard('orc')],
+        front: [null, patrolCard('orc'), patrolCard('martian'), null],
+        rear:  [patrolCard('elf'), null, null, patrolCard('astronaut')],
+        nexus: [],
+      },
+    },
+  };
+}
+
+/* ===================== Actions ===================== */
+/* Single dispatch point — DOM handlers only ever call this. */
+function dispatch(action){
+  console.log('[DC-3] action dispatched:', action.type, '(game logic arrives in M2+)');
+}
+
+/* ===================== Rendering ===================== */
+/* One render(gameState) redraws the whole UI from state. */
+
+function cardHtml(card){
+  if (!card) return '';
+  const rarityClass = card.kind === 'patrol' ? 'rarity-' + card.rarity.toLowerCase() : 'rarity-effect';
+  let stats = '';
+  if (card.kind === 'patrol') stats = `<span>${card.mp} MP</span><span>${card.vsp} VsP</span>`;
+  if (card.kind === 'effect') stats = `<span>${card.mp} MP</span><span>${card.type}</span>`;
+  /* .card-body is the styled placeholder frame; the art sits on top.
+     If the image is missing it removes itself and the frame shows. */
+  return `<div class="card ${rarityClass}" title="${card.name}">
+    <div class="card-body"></div>
+    <img class="card-art" src="${assetUrl(card.asset)}" alt="" onerror="this.remove()">
+    <span class="card-name">${card.name}</span>
+    ${stats ? `<span class="card-stats">${stats}</span>` : ''}
+  </div>`;
+}
+
+function cardBackHtml(){
+  return `<div class="card card-back" title="Hidden card">
+    <img class="card-art" src="${assetUrl('card-back.jpg')}" alt="" onerror="this.remove()">
+    <span class="back-glyph">☾</span>
+  </div>`;
+}
+
+function slotHtml(card, tag, extraClass){
+  return `<div class="slot ${extraClass || ''}">${card ? cardHtml(card) : `<span class="slot-tag">${tag}</span>`}</div>`;
+}
+
+function lineHtml(cards, prefix){
+  return cards.map((c, i) => slotHtml(c, prefix + (i + 1))).join('');
+}
+
+function pileHtml(label, inner, count){
+  return `<div class="pile">
+    ${count != null ? `<span class="pile-count">${count}</span>` : ''}
+    ${inner || `<div class="slot"><span class="slot-tag">${label}</span></div>`}
+    <span class="pile-label">${label}</span>
+  </div>`;
+}
+
+function nexusHtml(nexus, label){
+  const inner = nexus.length ? nexus.map(c => cardHtml(c)).join('') : `<span class="slot-tag">${label}</span>`;
+  return `<div class="slot wide">${inner}</div>`;
+}
+
+function terrainSlotHtml(terrain){
+  if (!terrain) return `<div class="slot"><span class="slot-tag">Terrain</span></div>`;
+  return `<div class="slot">${cardHtml({ kind:'terrain', name:terrain.name, asset:terrain.asset })}</div>`;
+}
+
+function arenaHtml(s){
+  const opp = s.battlers.opponent, ply = s.battlers.player;
+  const bg = s.terrain ? assetUrl(s.terrain.asset) : assetUrl('game-mat.jpg');
+  return `<main class="arena" style="background-image:url('${bg}')">
+    <section class="hand-row">
+      <span class="row-label">Opponent Hand — hidden</span>
+      <div class="hand">${Array.from({length: opp.handCount}, cardBackHtml).join('')}</div>
+      <div class="piles">
+        ${pileHtml('Deck', cardBackHtml(), opp.deckCount)}
+        ${pileHtml('Discard', opp.discard.length ? cardHtml(opp.discard[opp.discard.length - 1]) : '', opp.discard.length || null)}
+      </div>
+    </section>
+    <section class="row"><span class="row-label">AI Rear Line</span><div class="slots">${lineHtml(opp.rear, 'R')}</div><span></span></section>
+    <section class="row"><span class="row-label">AI Front Line</span><div class="slots">${lineHtml(opp.front, 'F')}</div><span></span></section>
+    <section class="row">
+      <span class="row-label">Nexus · Topographic · Nexus</span>
+      <div class="mid-slots">
+        ${nexusHtml(opp.nexus, 'AI Nexus')}
+        ${terrainSlotHtml(s.terrain)}
+        ${nexusHtml(ply.nexus, 'Your Nexus')}
+      </div>
+      <span></span>
+    </section>
+    <section class="row"><span class="row-label">Your Front Line</span><div class="slots">${lineHtml(ply.front, 'F')}</div><span></span></section>
+    <section class="row"><span class="row-label">Your Rear Line</span><div class="slots">${lineHtml(ply.rear, 'R')}</div><span></span></section>
+    <section class="hand-row">
+      <span class="row-label">Your Hand — face up</span>
+      <div class="hand">${ply.hand.map(c => cardHtml(c)).join('')}</div>
+      <div class="piles">
+        ${pileHtml('Deck', cardBackHtml(), ply.deckCount)}
+        ${pileHtml('Discard', ply.discard.length ? cardHtml(ply.discard[ply.discard.length - 1]) : '', ply.discard.length || null)}
+      </div>
+    </section>
+  </main>`;
+}
+
+function apBarHtml(battler){
+  const pct = Math.max(0, Math.min(100, (battler.ap / STARTING_AP) * 100));
+  const icon = battler.celestial === 'sun' ? '☀' : '☾';
+  return `<div class="ap-bar ${battler.celestial}">
+    <div class="ap-fill" style="width:${pct}%"></div>
+    <div class="ap-text"><span>${icon}</span><span>${battler.ap} / ${STARTING_AP} AP</span></div>
+  </div>`;
+}
+
+/* HUD renders in the exact GDD §4 order:
+   1 Opponent AP+MP · 2 Terrain · 3 Player AP+MP · 4 End Turn · 5 New Match */
+function hudHtml(s){
+  const opp = s.battlers.opponent, ply = s.battlers.player;
+  return `<aside class="hud">
+    <h1>DC-3</h1>
+    <div class="hud-block">
+      <span class="battler-label">${opp.label} — Moon</span>
+      ${apBarHtml(opp)}
+      <span class="mp-chip">MP ${opp.mp}</span>
+    </div>
+    <div class="hud-block terrain-block">
+      <span class="terrain-title">Terrain</span>
+      <span class="terrain-name">${s.terrain ? s.terrain.name : '—'}</span>
+      <span class="terrain-text">${s.terrain ? s.terrain.rule : 'Drawn at match start.'}</span>
+    </div>
+    <div class="hud-block">
+      <span class="battler-label">${ply.label} — Sun</span>
+      ${apBarHtml(ply)}
+      <span class="mp-chip">MP ${ply.mp}</span>
+    </div>
+    <button id="btnEndTurn">End Turn</button>
+    <button id="btnNewMatch">New Match</button>
+    <div class="hud-note">M1 static preview — coin toss, Terrain draw and turns arrive in M2. Sun/Moon sides shown are placeholders.</div>
+  </aside>`;
+}
+
+function render(s){
+  const app = document.getElementById('app');
+  app.innerHTML = arenaHtml(s) + hudHtml(s);
+  document.getElementById('btnEndTurn').addEventListener('click', () => dispatch({ type:'END_TURN' }));
+  document.getElementById('btnNewMatch').addEventListener('click', () => dispatch({ type:'NEW_MATCH' }));
+}
+
+/* ===================== Boot ===================== */
+let gameState = makeDemoState();
+render(gameState);
+</script>
+</body>
+</html>
